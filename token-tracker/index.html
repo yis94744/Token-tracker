@@ -1,0 +1,338 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DeepSeek API Token 用量记录器</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #0d1117; --card: #161b22; --border: #30363d; --text: #c9d1d9;
+  --muted: #8b949e; --accent: #58a6ff; --danger: #f85149; --success: #3fb950;
+  --warning: #d2991d; --radius: 8px; --gap: 16px;
+}
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding: 24px; }
+.container { max-width: 960px; margin: 0 auto; }
+header { margin-bottom: 24px; }
+header h1 { font-size: 1.5rem; display: flex; align-items: center; gap: 8px; }
+header h1 svg { width: 28px; height: 28px; fill: var(--accent); }
+.proxy-status { display: inline-flex; align-items: center; gap: 6px; font-size: 0.75rem; padding: 4px 12px; border-radius: 20px; margin-left: 12px; }
+.proxy-status.online { background: rgba(63,185,80,0.15); color: var(--success); }
+.proxy-status.offline { background: rgba(248,81,73,0.15); color: var(--danger); }
+.proxy-status .dot { width: 8px; height: 8px; border-radius: 50%; }
+.proxy-status.online .dot { background: var(--success); animation: pulse 2s infinite; }
+.proxy-status.offline .dot { background: var(--danger); }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+h2 { font-size: 1rem; margin-bottom: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+.card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: var(--gap); }
+.stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: var(--gap); margin-bottom: var(--gap); }
+.stat-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; text-align: center; }
+.stat-value { font-size: 2rem; font-weight: 700; line-height: 1.2; font-variant-numeric: tabular-nums; }
+.stat-label { font-size: 0.8rem; color: var(--muted); margin-top: 4px; }
+
+.form-row { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
+.form-group { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 140px; }
+.form-group label { font-size: 0.8rem; color: var(--muted); }
+.form-group input, .form-group select { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; color: var(--text); padding: 8px 12px; font-size: 0.9rem; outline: none; transition: border-color .2s; }
+.form-group input:focus, .form-group select:focus { border-color: var(--accent); }
+
+.btn { padding: 8px 16px; border-radius: 6px; border: 1px solid var(--border); font-size: 0.9rem; cursor: pointer; transition: all .2s; display: inline-flex; align-items: center; gap: 6px; }
+.btn-primary { background: #238636; border-color: #238636; color: #fff; }
+.btn-primary:hover { background: #2ea043; }
+.btn-danger { background: transparent; color: var(--danger); border-color: var(--danger); }
+.btn-danger:hover { background: var(--danger); color: #fff; }
+.btn-muted { background: transparent; color: var(--muted); }
+.btn-muted:hover { background: var(--border); }
+.btn-accent { background: transparent; color: var(--accent); border-color: var(--accent); }
+.btn-accent:hover { background: var(--accent); color: #fff; }
+
+table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+th { text-align: left; font-weight: 600; color: var(--muted); padding: 10px 12px; border-bottom: 1px solid var(--border); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; }
+td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
+tr:hover td { background: rgba(88,166,255,0.04); }
+.token-num { font-variant-numeric: tabular-nums; font-weight: 600; }
+.toolbar { display: flex; gap: 8px; flex-wrap: wrap; }
+.empty-state { text-align: center; padding: 48px 24px; color: var(--muted); }
+.empty-state svg { width: 48px; height: 48px; fill: var(--muted); margin-bottom: 12px; }
+.toast { position: fixed; bottom: 24px; right: 24px; background: var(--success); color: #fff; padding: 10px 20px; border-radius: var(--radius); font-size: 0.85rem; opacity: 0; transform: translateY(20px); transition: all .3s; z-index: 10; pointer-events: none; }
+.toast.show { opacity: 1; transform: translateY(0); }
+
+.chart-bar { display: flex; align-items: flex-end; gap: 4px; height: 120px; padding-top: 8px; }
+.chart-bar-item { flex: 1; background: var(--accent); border-radius: 4px 4px 0 0; min-height: 2px; position: relative; transition: height .3s; cursor: pointer; }
+.chart-bar-item:hover { background: #79c0ff; }
+.chart-bar-item .tooltip { position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); background: var(--card); border: 1px solid var(--border); padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity .2s; }
+.chart-bar-item:hover .tooltip { opacity: 1; }
+.chart-labels { display: flex; gap: 4px; margin-top: 8px; }
+.chart-labels span { flex: 1; text-align: center; font-size: 0.7rem; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.auto-refresh { font-size: 0.75rem; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+.setup-hint { background: rgba(88,166,255,0.08); border: 1px solid rgba(88,166,255,0.2); border-radius: var(--radius); padding: 16px; margin-bottom: var(--gap); font-size: 0.85rem; display: none; }
+.setup-hint code { background: rgba(88,166,255,0.15); padding: 2px 6px; border-radius: 4px; font-size: 0.85em; }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>
+      <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
+      DeepSeek API Token 用量记录器
+      <span class="proxy-status offline" id="proxyStatus"><span class="dot"></span><span id="proxyStatusText">离线模式</span></span>
+    </h1>
+    <div class="setup-hint" id="setupHint">
+      💡 启动代理服务器以自动记录: <code>python proxy.py</code> → 然后将 API base_url 改为 <code>http://localhost:8890/v1</code>
+    </div>
+  </header>
+
+  <!-- 统计卡片 -->
+  <div class="stats-grid" id="statsGrid"></div>
+
+  <!-- 图表 -->
+  <div class="card" id="chartCard" style="display:none;">
+    <h2>📊 近7天用量趋势</h2>
+    <div class="chart-bar" id="chartBar"></div>
+    <div class="chart-labels" id="chartLabels"></div>
+  </div>
+
+  <!-- 手动添加 -->
+  <div class="card" id="manualCard">
+    <h2>✏️ 手动记录</h2>
+    <div class="form-row">
+      <div class="form-group"><label>API 名称</label><input type="text" id="apiName" placeholder="如：DeepSeek-chat" list="apiDatalist"><datalist id="apiDatalist"></datalist></div>
+      <div class="form-group"><label>日期</label><input type="date" id="apiDate"></div>
+      <div class="form-group"><label>Token 数</label><input type="number" id="apiTokens" placeholder="如：15000" min="1"></div>
+      <div class="form-group" style="flex:0 0 auto;"><label>&nbsp;</label><button class="btn btn-primary" onclick="addRecord()">+ 添加</button></div>
+    </div>
+  </div>
+
+  <!-- 记录列表 -->
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+      <h2 style="margin-bottom:0;">📋 调用记录</h2>
+      <div class="toolbar">
+        <select id="filterApi" onchange="renderTable()"><option value="">全部 API</option></select>
+        <button class="btn btn-accent" onclick="autoRefresh.toggle()" id="autoRefreshBtn" title="自动刷新">🔄 自动刷新</button>
+        <button class="btn btn-muted" onclick="exportData()">📤 导出</button>
+        <button class="btn btn-danger" onclick="clearAll()">🗑 清空</button>
+      </div>
+    </div>
+    <div style="overflow-x:auto;"><table id="recordTable"><thead><tr><th>时间</th><th>日期</th><th>API</th><th>模型</th><th>输入 Token</th><th>输出 Token</th><th>Total Token</th><th>操作</th></tr></thead><tbody></tbody></table></div>
+    <div class="empty-state" id="emptyState">
+      <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
+      <p>暂无记录 — 启动代理后每次 API 调用都会自动出现在这里</p>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+// ===== 模式检测 =====
+const isProxyMode = location.hostname === "localhost" || location.hostname === "127.0.0.1";
+const PROXY_DATA_URL = "/data";
+
+// ===== 数据层 =====
+const STORAGE_KEY = "token_tracker_records";
+let records = [];
+
+function loadLocalRecords() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]"); } catch(e) { return []; }
+}
+function saveLocalRecords(data) { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); }
+
+async function loadProxyRecords() {
+  try {
+    const resp = await fetch(PROXY_DATA_URL);
+    if (!resp.ok) throw new Error("proxy offline");
+    const data = await resp.json();
+    document.getElementById("proxyStatus").className = "proxy-status online";
+    document.getElementById("proxyStatusText").textContent = "代理在线";
+    document.getElementById("setupHint").style.display = "none";
+    return data;
+  } catch(e) {
+    document.getElementById("proxyStatus").className = "proxy-status offline";
+    document.getElementById("proxyStatusText").textContent = "离线模式";
+    document.getElementById("setupHint").style.display = "block";
+    return null;
+  }
+}
+
+async function loadAllRecords() {
+  if (isProxyMode) {
+    const proxyData = await loadProxyRecords();
+    if (proxyData !== null) {
+      records = proxyData;
+      return;
+    }
+  }
+  records = loadLocalRecords();
+}
+
+// ===== 工具函数 =====
+function fmtNum(n) { return (n || 0).toLocaleString(); }
+function todayStr() { return new Date().toISOString().slice(0, 10); }
+function daysAgo(n) { const d = new Date(); d.setDate(d.getDate() - n); return d.toISOString().slice(0,10); }
+function weekStart() { const d = new Date(); d.setDate(d.getDate() - (d.getDay() || 7) + 1); return d.toISOString().slice(0,10); }
+function monthStart() { const d = new Date(); d.setDate(1); return d.toISOString().slice(0,10); }
+
+function showToast(msg) {
+  const el = document.getElementById("toast");
+  el.textContent = msg; el.classList.add("show");
+  setTimeout(() => el.classList.remove("show"), 2000);
+}
+
+// ===== 渲染 =====
+function renderStats() {
+  const today = todayStr(), ws = weekStart(), ms = monthStart();
+  const byDate = (r, d) => r.date && r.date.startsWith(d);
+  const sum = (arr, fn) => arr.filter(fn).reduce((s,r) => s + (r.total_tokens||0), 0);
+
+  const stats = [
+    { label: "今日用量", value: fmtNum(sum(records, r => byDate(r, today))), color: "var(--accent)" },
+    { label: "本周用量", value: fmtNum(sum(records, r => r.date >= ws)), color: "#79c0ff" },
+    { label: "本月用量", value: fmtNum(sum(records, r => r.date >= ms)), color: "var(--success)" },
+    { label: "总用量", value: fmtNum(sum(records, () => true)), color: "var(--warning)" },
+    { label: "API 种类", value: new Set(records.map(r => r.api)).size, color: "var(--muted)" },
+    { label: "调用次数", value: records.length, color: "var(--muted)" },
+  ];
+  document.getElementById("statsGrid").innerHTML = stats.map(s =>
+    `<div class="stat-card"><div class="stat-value" style="color:${s.color}">${s.value}</div><div class="stat-label">${s.label}</div></div>`
+  ).join("");
+}
+
+function renderChart() {
+  const days = []; for (let i=6; i>=0; i--) days.push(daysAgo(i));
+  const values = days.map(d => records.filter(r => r.date === d).reduce((s,r) => s + (r.total_tokens||0), 0));
+  const maxVal = Math.max(...values, 1);
+  const hasData = values.some(v => v > 0);
+  document.getElementById("chartCard").style.display = hasData ? "" : "none";
+  if (!hasData) return;
+  document.getElementById("chartBar").innerHTML = values.map(v =>
+    `<div class="chart-bar-item" style="height:${Math.max((v/maxVal)*100, 2)}%"><span class="tooltip">${fmtNum(v)} tokens</span></div>`
+  ).join("");
+  document.getElementById("chartLabels").innerHTML = days.map(d => {
+    const dayNames = ["日","一","二","三","四","五","六"];
+    const wd = dayNames[new Date(d).getDay()];
+    return `<span>${d.slice(5)} 周${wd}</span>`;
+  }).join("");
+}
+
+function renderTable() {
+  const filter = document.getElementById("filterApi").value;
+  let filtered = [...records].reverse();
+  if (filter) filtered = filtered.filter(r => r.api === filter);
+
+  const tbody = document.querySelector("#recordTable tbody");
+  if (!filtered.length) {
+    tbody.innerHTML = "";
+    document.getElementById("emptyState").style.display = "";
+    return;
+  }
+  document.getElementById("emptyState").style.display = "none";
+  tbody.innerHTML = filtered.map((r, i) => {
+    const idx = records.indexOf(r);
+    return `<tr>
+      <td style="font-size:0.8rem;color:var(--muted)">${r.timestamp || ""}</td>
+      <td>${r.date || ""}</td>
+      <td>${escHtml(r.api)}</td>
+      <td style="font-size:0.8rem;color:var(--muted)">${escHtml(r.model||"")}</td>
+      <td class="token-num">${fmtNum(r.prompt_tokens||0)}</td>
+      <td class="token-num">${fmtNum(r.completion_tokens||0)}</td>
+      <td class="token-num" style="color:var(--accent)">${fmtNum(r.total_tokens||0)}</td>
+      <td><button class="btn btn-danger" style="padding:4px 10px;font-size:0.8rem" onclick="deleteRecord(${idx})">删除</button></td>
+    </tr>`;
+  }).join("");
+}
+
+function renderApiFilter() {
+  const apis = [...new Set(records.map(r => r.api))].sort();
+  const sel = document.getElementById("filterApi");
+  sel.innerHTML = '<option value="">全部 API</option>' + apis.map(a => `<option>${escHtml(a)}</option>`).join("");
+  document.getElementById("apiDatalist").innerHTML = apis.map(a => `<option value="${escHtml(a)}">`).join("");
+}
+
+function escHtml(s) { const d = document.createElement("div"); d.textContent = s||""; return d.innerHTML; }
+
+async function renderAll() {
+  await loadAllRecords();
+  renderStats();
+  renderChart();
+  renderApiFilter();
+  renderTable();
+}
+
+// ===== 自动刷新 =====
+const autoRefresh = {
+  timer: null,
+  toggle() {
+    if (this.timer) { this.stop(); }
+    else { this.start(); }
+  },
+  start() {
+    this.timer = setInterval(renderAll, 5000);
+    document.getElementById("autoRefreshBtn").textContent = "⏸ 停止刷新";
+    document.getElementById("autoRefreshBtn").className = "btn btn-accent";
+  },
+  stop() {
+    clearInterval(this.timer); this.timer = null;
+    document.getElementById("autoRefreshBtn").textContent = "🔄 自动刷新";
+    document.getElementById("autoRefreshBtn").className = "btn btn-muted";
+  }
+};
+
+// ===== 手动操作 =====
+function addRecord() {
+  const api = document.getElementById("apiName").value.trim();
+  const date = document.getElementById("apiDate").value;
+  const tokens = parseInt(document.getElementById("apiTokens").value);
+  if (!api || !date || !tokens || tokens <= 0) { showToast("请填写完整信息"); return; }
+
+  const record = {
+    date, timestamp: new Date().toISOString().slice(0,19).replace("T"," "),
+    api, model: "", prompt_tokens: 0, completion_tokens: 0, total_tokens: tokens
+  };
+
+  if (isProxyMode) {
+    records.push(record);
+    saveLocalRecords(records);
+  } else {
+    records.push(record);
+    saveLocalRecords(records);
+  }
+  document.getElementById("apiName").value = "";
+  document.getElementById("apiTokens").value = "";
+  renderAll();
+  showToast("✅ 记录已添加");
+}
+
+function deleteRecord(idx) {
+  if (!confirm("确定删除这条记录吗？")) return;
+  records.splice(idx, 1);
+  if (!isProxyMode) saveLocalRecords(records);
+  renderAll();
+  showToast("🗑 记录已删除");
+}
+
+function clearAll() {
+  if (!confirm("确定要清空所有记录吗？此操作不可恢复！")) return;
+  records = [];
+  if (!isProxyMode) saveLocalRecords(records);
+  renderAll();
+  showToast("🗑 所有记录已清空");
+}
+
+function exportData() {
+  const blob = new Blob([JSON.stringify(records, null, 2)], {type:"application/json"});
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
+  a.download = `deepseek-tokens-${todayStr()}.json`; a.click();
+  showToast("📤 数据已导出");
+}
+
+// ===== 初始化 =====
+document.getElementById("apiDate").value = todayStr();
+renderAll();
+
+// 定时刷新（代理模式下默认开启）
+if (isProxyMode) autoRefresh.start();
+</script>
+</body>
+</html>

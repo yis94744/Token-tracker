@@ -1,0 +1,38 @@
+[
+  {
+    "date": "2026-07-01",
+    "timestamp": "2026-07-01 09:20:18",
+    "api": "DeepSeek-deepseek-v4-flash",
+    "model": "deepseek-v4-flash",
+    "prompt_tokens": 10,
+    "completion_tokens": 30,
+    "total_tokens": 40
+  },
+  {
+    "date": "2026-07-01",
+    "timestamp": "2026-07-01 09:20:26",
+    "api": "DeepSeek-deepseek-v4-flash",
+    "model": "deepseek-v4-flash",
+    "prompt_tokens": 10,
+    "completion_tokens": 9,
+    "total_tokens": 19
+  },
+  {
+    "date": "2026-07-01",
+    "timestamp": "2026-07-01 09:22:22",
+    "api": "DeepSeek-deepseek-v4-flash",
+    "model": "deepseek-v4-flash",
+    "prompt_tokens": 35,
+    "completion_tokens": 557,
+    "total_tokens": 592
+  },
+  {
+    "date": "2026-07-01",
+    "timestamp": "2026-07-01 09:23:31",
+    "api": "DeepSeek-deepseek-v4-flash",
+    "model": "deepseek-v4-flash",
+    "prompt_tokens": 13,
+    "completion_tokens": 3,
+    "total_tokens": 16
+  }
+]
