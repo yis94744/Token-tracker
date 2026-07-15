@@ -1,3 +1,5 @@
+## 1. List.Sort 按 siblingIndex 排序
+
 在 Unity 中按 Hierarchy 层级顺序（从上到下）对列表排序，可以直接把比较委托传给 List.Sort()：
 
     list.Sort((a, b) => a.transform.GetSiblingIndex().CompareTo(b.transform.GetSiblingIndex()));
@@ -7,3 +9,16 @@
 - b.transform.GetSiblingIndex() 获取 b 的排位
 - CompareTo 返回 -1 / 0 / 1，正是 Sort 所需的比较结果
 - 结果：siblingIndex 小的排在列表前面，即按 Hierarchy 面板从上到下的视觉顺序排列
+
+
+## 2. activeInHierarchy
+
+activeInHierarchy 是 GameObject 的一个只读属性，判断这个物体在整个场景层级中是否真正处于激活状态。
+
+和 activeSelf 的关键区别：
+- activeSelf：只看自己身上的激活开关，不看父物体
+- activeInHierarchy：自己激活 并且 整条祖先链全部激活 才返回 true
+
+只要链上有任何一处被 SetActive(false) 了，activeInHierarchy 就是 false。
+
+典型场景：检测一个物体在当前场景中是否"可见可交互"，用 activeInHierarchy 比 activeSelf 更准确，因为它考虑了父级链的激活状态。
