@@ -1,24 +1,41 @@
-## 1. List.Sort 按 siblingIndex 排序
+================================================================================
+                        Unity 知识点笔记
+================================================================================
 
-在 Unity 中按 Hierarchy 层级顺序（从上到下）对列表排序，可以直接把比较委托传给 List.Sort()：
+--------------------------------------------------------------------------------
+1. List.Sort 按 siblingIndex 排序
+--------------------------------------------------------------------------------
 
-    list.Sort((a, b) => a.transform.GetSiblingIndex().CompareTo(b.transform.GetSiblingIndex()));
+功能：将列表按 Hierarchy 面板从上到下的视觉顺序排列。
 
-解析：
-- a.transform.GetSiblingIndex() 获取 a 在父节点下的排位（0 为最上方）
-- b.transform.GetSiblingIndex() 获取 b 的排位
-- CompareTo 返回 -1 / 0 / 1，正是 Sort 所需的比较结果
-- 结果：siblingIndex 小的排在列表前面，即按 Hierarchy 面板从上到下的视觉顺序排列
+用法：
+    list.Sort((a, b) =>
+        a.transform.GetSiblingIndex().CompareTo(b.transform.GetSiblingIndex())
+    );
+
+说明：
+    · GetSiblingIndex()  获取物体在父节点下的排位（0 = 最上方）
+    · CompareTo()        返回 -1 / 0 / 1，正是 Sort 所需的比较委托签名
+    · 结果：siblingIndex 小的排在列表前面 → 即 Hierarchy 中从上到下
 
 
-## 2. activeInHierarchy
+--------------------------------------------------------------------------------
+2. activeInHierarchy
+--------------------------------------------------------------------------------
 
-activeInHierarchy 是 GameObject 的一个只读属性，判断这个物体在整个场景层级中是否真正处于激活状态。
+定义：GameObject 的只读属性，判断物体在场景层级中是否真正处于激活状态。
 
-和 activeSelf 的关键区别：
-- activeSelf：只看自己身上的激活开关，不看父物体
-- activeInHierarchy：自己激活 并且 整条祖先链全部激活 才返回 true
+比较：
 
-只要链上有任何一处被 SetActive(false) 了，activeInHierarchy 就是 false。
+    activeSelf            只看自身 SetActive 开关，不管父物体
+    activeInHierarchy     自身激活 + 整条祖先链全部激活 → true
 
-典型场景：检测一个物体在当前场景中是否"可见可交互"，用 activeInHierarchy 比 activeSelf 更准确，因为它考虑了父级链的激活状态。
+规则：
+    只要祖先链上任一节点被 SetActive(false)，activeInHierarchy 即返回 false。
+
+典型用途：
+    检测物体是否"可见可交互"。用 activeInHierarchy 比 activeSelf 更可靠，
+    因为它会穿透整条父级链判断最终激活状态。
+
+
+================================================================================
