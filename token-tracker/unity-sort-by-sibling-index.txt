@@ -1,0 +1,9 @@
+在 Unity 中按 Hierarchy 层级顺序（从上到下）对列表排序，可以直接把比较委托传给 List.Sort()：
+
+    list.Sort((a, b) => a.transform.GetSiblingIndex().CompareTo(b.transform.GetSiblingIndex()));
+
+解析：
+- a.transform.GetSiblingIndex() 获取 a 在父节点下的排位（0 为最上方）
+- b.transform.GetSiblingIndex() 获取 b 的排位
+- CompareTo 返回 -1 / 0 / 1，正是 Sort 所需的比较结果
+- 结果：siblingIndex 小的排在列表前面，即按 Hierarchy 面板从上到下的视觉顺序排列
